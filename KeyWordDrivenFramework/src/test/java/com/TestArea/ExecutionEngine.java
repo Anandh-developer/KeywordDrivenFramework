@@ -8,7 +8,6 @@ import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
-import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 
@@ -17,8 +16,10 @@ import com.Actions.WebElemetActions;
 import com.configurations.BaseConfigurations;
 import com.helper.DropdownHelper;
 import com.helper.FrameHelper;
+import com.helper.ScreenshotHelper;
 import com.helper.WaitHelper;
 import com.helper.WebElementCreator;
+import com.reportUtilities.ExtentReport;
 
 public class ExecutionEngine {
 
@@ -34,13 +35,14 @@ public class ExecutionEngine {
 	FrameHelper frameHelper;
 	DropdownHelper dropdownHelper;
 	WebElementCreator webElementCreator;
-
+	ScreenshotHelper screenshotHelper;
+	ExtentReport extentReport;
 	public ExecutionEngine(String fileName, String sheetName) {
 		this.fileName = fileName;
 		this.sheetName = sheetName;
 	}
 
-	public void runTest(int startRow, int endingRow) throws InterruptedException {
+	public void runTest(int startRow, int endingRow) throws InterruptedException, IOException {
 		webElementAction = new WebElemetActions(driver);
 		waitHelper = new WaitHelper(driver);
 		frameHelper = new FrameHelper(driver);
@@ -53,7 +55,6 @@ public class ExecutionEngine {
 		String locatorValue = "";
 		String action = "";
 		String testData = "";
-
 		FileInputStream inputStream = null;
 		try {
 			inputStream = new FileInputStream(fileName);
@@ -80,16 +81,21 @@ public class ExecutionEngine {
 			dropdownBasis = sheet.getRow(i).getCell(k + 5).getStringCellValue();
 
 			frameLocateBasis = sheet.getRow(i).getCell(k + 7).getStringCellValue();
+
 			switch (action) {
+
 			case "Open_browser":
-				System.out.println("Test Data " + testData);
+				
+				
+				
 				if (testData.isBlank() || testData.equalsIgnoreCase("NA")) {
 					driver = baseActions.launchBrowser(baseConfig.getBrowserName());
 				} else {
 					driver = baseActions.launchBrowser(testData);
 
 				}
-
+				extentReport= new ExtentReport(driver);
+				extentReport.startTest("Test Reports");
 				break;
 			case "launch_URL":
 				driver.get(testData);
@@ -98,32 +104,44 @@ public class ExecutionEngine {
 				frameHelper = new FrameHelper(driver);
 				webElementCreator = new WebElementCreator(driver);
 				dropdownHelper = new DropdownHelper(driver);
+				
+				screenshotHelper= new ScreenshotHelper(driver);
+				screenshotHelper.setupScreenshotFolderName();
+				extentReport.setReportLog("info", "URL got launched");
+				extentReport.attachScreenshotToTheReport();
 				break;
 			case "sendkeys":
 				webElement = webElementCreator.getWebElement(locatorKey, locatorValue);
 				webElement.sendKeys(testData);
-				System.out.println("Test Data " + testData);
-				Thread.sleep(3000);
+				
+				screenshotHelper.takeScreenshot();
+				
+				extentReport.setReportLog("info", "Test Data got entered");
+				extentReport.attachScreenshotToTheReport();
 				break;
 
 			case "click":
 				webElement = webElementCreator.getWebElement(locatorKey, locatorValue);
 				webElement.click();
+				screenshotHelper.takeScreenshot();
 				break;
 			case "select_from_dropdown":
-				System.out.println("Dropdown case");
+				
 				webElement = webElementCreator.getWebElement(locatorKey, locatorValue);
 				if (dropdownBasis.equalsIgnoreCase("index")) {
-					System.out.println("Dropdown basis is index");
+					
 					dropdownHelper.selectByUsingIndex(webElement, Integer.parseInt(testData));
+					screenshotHelper.takeScreenshot();
 				}
 				if (dropdownBasis.equalsIgnoreCase("value")) {
-					System.out.println("Dropdown basis is value");
+					
 					dropdownHelper.selectByUsingValue(webElement, testData);
+					screenshotHelper.takeScreenshot();
 				}
 				if (dropdownBasis.equalsIgnoreCase("text")) {
-					System.out.println("Dropdown basis is text");
+				
 					dropdownHelper.selectByUsingVisibleText(webElement, testData);
+					screenshotHelper.takeScreenshot();
 				}
 				break;
 			case "swicth_to_frame":
@@ -131,24 +149,25 @@ public class ExecutionEngine {
 				if (frameLocateBasis.equalsIgnoreCase("webElement")) {
 					webElement = webElementCreator.getWebElement(locatorKey, locatorValue);
 					frameHelper.swithcToFrameWithWebElement(webElement);
+					screenshotHelper.takeScreenshot();
 				} else if (frameLocateBasis.equalsIgnoreCase("id")) {
-					System.out.println("Frame Locate Basis " + frameLocateBasis);
-					System.out.println("Frame Locate ID " + locatorValue);
-					frameHelper.switchToFrameWithID(locatorValue);
 					
-				}
-				else if (frameLocateBasis.equalsIgnoreCase("index")) {
-					System.out.println("Frame Locate Basis " + frameLocateBasis);
-					System.out.println("Frame Locate ID " + locatorValue);
+					frameHelper.switchToFrameWithID(locatorValue);
+					screenshotHelper.takeScreenshot();
+
+				} else if (frameLocateBasis.equalsIgnoreCase("index")) {
+					
 					frameHelper.switchToFrameWithIndex(Integer.parseInt(locatorValue));
-					Thread.sleep(3000);
+					screenshotHelper.takeScreenshot();
 				}
 				break;
 			case "close_browser":
+				screenshotHelper.takeScreenshot();
 				driver.quit();
+				extentReport.flushReport();
 				break;
 			default:
-				System.out.println("Main Default");
+				
 				break;
 			}
 
